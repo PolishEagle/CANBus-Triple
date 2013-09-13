@@ -98,25 +98,26 @@ void handleInterrupt1(){}
 void loop() {
   
  byte button = WheelButton::getButtonDown();
- if( wheelButton != button ){
+ if( wheelButton != button )
+ {
    wheelButton = button;
-   
+  
    switch(wheelButton){
-     case B10000000:
-       MazdaLED::showStatusMessage("LEFT        ", 2000);
+     case B10000000: // left
+       MazdaLED::nextScreen(-1);
      break;
-     case B01000000:
-       MazdaLED::showStatusMessage("DERP        ", 2000);
+     case B01000000: // right
+       MazdaLED::nextScreen(1);
      break;
-     case B00100000:
-       MazdaLED::showStatusMessage("HERP        ", 2000);
+     case B00100000: // up
+       MazdaLED::nextScreen(1);
      break;
-     case B00010000:
-       MazdaLED::showStatusMessage("NERP        ", 2000);
+     case B00010000: // down
+       MazdaLED::nextScreen(-1);
      break;
      case B1000010:
        MazdaLED::enabled = !MazdaLED::enabled;
-       EEPROM.write(0, MazdaLED::enabled); // For testing, proper settings in EEPROM TBD
+       EEPROM.write(EepromEnabledBit, MazdaLED::enabled); // For testing, proper settings in EEPROM TBD
        if(MazdaLED::enabled)
          MazdaLED::showStatusMessage("MazdaLED ON ", 2000);
          else
