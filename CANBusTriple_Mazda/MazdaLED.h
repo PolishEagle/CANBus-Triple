@@ -7,7 +7,7 @@ enum {
   EepromCurrentScreen = 1
 };
 
-static char * screenDescription[13] = { "AFR & ExTemp", "KPH & RPM   " };
+static char * screenDescription[13] = { "AFR & KR  ", "KPH & RPM   ", "Boost & BAT", "FuelPr Exh.T" };
 
 class MazdaLED : 
 Middleware
@@ -37,6 +37,10 @@ public:
   static char* currentLcdString();
   static void knockServiceCall();
   static void egtServiceCall();
+  static void afrServiceCall();
+  static void boostServiceCall();
+  static void batServiceCall();
+  static void fpServiceCall();
   static void advanceServiceCall();
   static void pWeightServiceCall();
   static void nextScreen(short dir);
@@ -54,20 +58,20 @@ char MazdaLED::lcdString[13] = "CANBusTriple";
 char MazdaLED::lcdStockString[13] = "            ";
 char MazdaLED::lcdStatusString[13] = "            ";
 
-int afr;
-int afrWhole;
-int afrRemainder;
-int knockRetard;
-int egt;
-int sparkAdvance;
-int pWeight;
-int speedKph;
-int egineRPM;
+int afr = 0, afrWhole = 0, afrRemainder = 0;
+int krd = 0, krdWhole = 0, krdRemainder = 0;
+int boost = 0, boostWhole = 0, boostRemainder = 0;
+int egt = 0;
+int sparkAdvance = 0;
+int pWeight = 0;
+int speedKph = 0;
+int egineRPM = 0;
+int bat = 0;
+int fuelPressure = 0;
 
 unsigned long MazdaLED::animationCounter = 0;
 unsigned long MazdaLED::stockOverrideTimer = 4000;
 unsigned long MazdaLED::statusOverrideTimer = 0;
-
 
 
 
@@ -93,7 +97,12 @@ void MazdaLED::tick()
   if( (millis() % 100) < 1 ) MazdaLED::egtServiceCall();
   // if( (millis() % 100) < 1 ) MazdaLED::advanceServiceCall();
   // if( (millis() % 100) < 1 ) MazdaLED::pWeightServiceCall();
-
+  
+  if( (millis() % 100) < 1 ) MazdaLED::knockServiceCall();  
+  if( (millis() % 203) < 1 ) MazdaLED::afrServiceCall();
+  if( (millis() % 206) < 1 ) MazdaLED::boostServiceCall();
+  if( (millis() % 503) < 1 ) MazdaLED::batServiceCall();
+  if( (millis() % 209) < 1 ) MazdaLED::fpServiceCall();
 }
 
 
@@ -104,16 +113,13 @@ void MazdaLED::showStatusMessage(char* str, int time){
 
 
 void MazdaLED::knockServiceCall(){
-
-  // NOT WORKING
-
   Message msg;
   msg.busId = 2;
   msg.frame_id = 0x7E0;     // 02 01 0D 00 00 00 00 00
   msg.frame_data[0] = 0x03;
   msg.frame_data[1] = 0x22;
-  msg.frame_data[2] = 0x17;
-  msg.frame_data[3] = 0x46;
+  msg.frame_data[2] = 0x03;
+  msg.frame_data[3] = 0xEC;
   msg.frame_data[4] = 0x00;
   msg.frame_data[5] = 0x00;
   msg.frame_data[6] = 0x00;
@@ -121,11 +127,9 @@ void MazdaLED::knockServiceCall(){
   msg.length = 8;
   msg.dispatch = true;
   mainQueue->push(msg);
-
 }
 
 void MazdaLED::advanceServiceCall(){
-
   Message msg;
   msg.busId = 2;
   msg.frame_id = 0x7E0;     // 02 01 0D 00 00 00 00 00
@@ -140,11 +144,9 @@ void MazdaLED::advanceServiceCall(){
   msg.length = 8;
   msg.dispatch = true;
   mainQueue->push(msg);
-
 }
 
 void MazdaLED::egtServiceCall(){
-
   Message msg;
   msg.busId = 2;
   msg.frame_id = 0x7E0;
@@ -159,11 +161,77 @@ void MazdaLED::egtServiceCall(){
   msg.length = 8;
   msg.dispatch = true;
   mainQueue->push(msg);
+}
 
+void MazdaLED::afrServiceCall(){
+  Message msg;
+  msg.busId = 2;
+  msg.frame_id = 0x7E0;
+  msg.frame_data[0] = 0x03;
+  msg.frame_data[1] = 0x22;
+  msg.frame_data[2] = 0xDA;
+  msg.frame_data[3] = 0x85;
+  msg.frame_data[4] = 0x00;
+  msg.frame_data[5] = 0x00;
+  msg.frame_data[6] = 0x00;
+  msg.frame_data[7] = 0x00;
+  msg.length = 8;
+  msg.dispatch = true;
+  mainQueue->push(msg);
+}
+
+void MazdaLED::boostServiceCall(){
+  Message msg;
+  msg.busId = 2;
+  msg.frame_id = 0x7E0;
+  msg.frame_data[0] = 0x02;
+  msg.frame_data[1] = 0x01;
+  msg.frame_data[2] = 0x0B;
+  msg.frame_data[3] = 0x00;
+  msg.frame_data[4] = 0x00;
+  msg.frame_data[5] = 0x00;
+  msg.frame_data[6] = 0x00;
+  msg.frame_data[7] = 0x00;
+  msg.length = 8;
+  msg.dispatch = true;
+  mainQueue->push(msg);
+}
+
+void MazdaLED::batServiceCall(){
+  Message msg;
+  msg.busId = 2;
+  msg.frame_id = 0x7E0;
+  msg.frame_data[0] = 0x03;
+  msg.frame_data[1] = 0x22;
+  msg.frame_data[2] = 0x03;
+  msg.frame_data[3] = 0xCA;
+  msg.frame_data[4] = 0x00;
+  msg.frame_data[5] = 0x00;
+  msg.frame_data[6] = 0x00;
+  msg.frame_data[7] = 0x00;
+  msg.length = 8;
+  msg.dispatch = true;
+  mainQueue->push(msg);
+}
+
+void MazdaLED::fpServiceCall(){
+  Message msg;
+  msg.busId = 2;
+  msg.frame_id = 0x7E0;
+  msg.frame_data[0] = 0x03;
+  msg.frame_data[1] = 0x22;
+  msg.frame_data[2] = 0xF4;
+  msg.frame_data[3] = 0x23;
+  msg.frame_data[4] = 0x00;
+  msg.frame_data[5] = 0x00;
+  msg.frame_data[6] = 0x00;
+  msg.frame_data[7] = 0x00;
+  msg.length = 8;
+  msg.dispatch = true;
+  mainQueue->push(msg);
 }
 
 void MazdaLED::pWeightServiceCall(){
-
   Message msg;
   msg.busId = 2;
   msg.frame_id = 0x737;
@@ -178,9 +246,7 @@ void MazdaLED::pWeightServiceCall(){
   msg.length = 8;
   msg.dispatch = true;
   mainQueue->push(msg);
-
 }
-
 
 
 
@@ -361,53 +427,81 @@ void MazdaLED::generateScreenMsg(Message msg)
   // Display an empty string just incase nothing is selected
   sprintf(lcdString, "            ");
 
-  // Test crap for AFR
-  /*
-  if( msg.frame_id == 0x200 ){
-   int afr;
-   afr = ((((msg.frame_data[2]-38)*256)+msg.frame_data[3])-0)/16;
-   }
-   */
-
-
   // This is used for getting the vehicle AFR
   // switch(EEPROM.read(EepromCurrentScreen))  // TODO: This is disabled until I can determine how many writes the memory can support
   switch(currentScreen)
   {
-    // First page to show the AFR and EGT
+    // First page to show the AFR and Knock
   case 0:
-    // AFR
-    if( msg.frame_id == 0x200 ){        
-      // afr = ((((msg.frame_data[2]-38)*256)+msg.frame_data[3])-0)/16;
-      afr = (((msg.frame_data[2]-38)*256) +msg.frame_data[3])*62.5;
-      afrWhole = afr/1000;
-      afrRemainder = (afr % 1000)/100;
+    if((msg.frame_id == 0x7E8 || msg.frame_id == 0x7E0) && msg.frame_data[1] == 0x62){
+      // AFR
+      if (msg.frame_data[2] == 0xDA && msg.frame_data[3] == 0x85) {
+        afr = ((msg.frame_data[4] *23)/20);
+        afrWhole = afr/10;
+        afrRemainder = afr % 10;
+      }
+      
+      // Knock retard
+      if (msg.frame_data[2] == 0x03 && msg.frame_data[3] == 0xEC) {
+        krd = ((msg.frame_data[4] << 8) + msg.frame_data[5]) / 5;
+        krdWhole = krd / 100;
+        krdRemainder = krd % 100;
+      }
     }
 
-    // Exhaust gas temp
-    if( msg.frame_id == 0x7E8 && msg.frame_data[2] == 0x3C ){
-      egt = (( msg.frame_data[3] *256)+ msg.frame_data[4] )/10 - 40;
-    }
-
-    sprintf(lcdString, "A:%d.%d E:%d", afrWhole, afrRemainder, egt);
+    sprintf(lcdString, "A%2d.%1d KR%2d.%1d", afrWhole, afrRemainder, krdWhole, krdRemainder);
     break;
 
     // Page two to show RPM and KM/h
   case 1:
-    if(msg.frame_id == 0x201 && msg.busId == 1){
-      // Vehicle speed - kph
-      speedKph = ((msg.frame_data[4] << 0x08) + msg.frame_data[5]) / 100;
-      engineRPM = (msg.frame_data[0] << 0x08) + msg.frame_data[1];
+    if(msg.frame_id == 0x7E8 || msg.frame_id == 0x7E0){
+      // Speed (km/h)
+      if (msg.frame_data[1] == 0x41 && msg.frame_data[2] == 0x0D)
+        speedKph = msg.frame_data[3];
+      
+      // Engine RPM
+      if (msg.frame_data[1] == 0x41 && msg.frame_data[2] == 0x0C)
+        engineRPM = ((msg.frame_data[3] << 0x08) + msg.frame_data[4]) / 4;
     }
 
-    sprintf(lcdString, "S:%d R:%d", speedKph, engineRPM);
+    sprintf(lcdString, "S:%3d R:%4d", speedKph, engineRPM);
     break;
+  
+  // Page three to show Boost and BAT
+  case 2:
+    if(msg.frame_id == 0x7E8 || msg.frame_id == 0x7E0) {
+      // Boost
+      if (msg.frame_data[1] == 0x41 && msg.frame_data[2] == 0x0B) {
+        boost = ((msg.frame_data[3] * 0x91)/0x64)-0x91;
+        boostWhole = boost/10;
+        boostRemainder = abs((boost % 10)); 
+      }
+      
+      // BAT
+      if (msg.frame_data[2] == 0x03 && msg.frame_data[3] == 0xCA) {
+        bat = ((msg.frame_data[4] * 0x09)/0x05) - 0x26;
+      }
+    }
+    
+    sprintf(lcdString, "%3d.%dPSI T%3d", boostWhole, boostRemainder, bat);
+    break;
+  
+  // Fuel preasure (PSI) and Exhaust gas temp
+  case 3:
+    if(msg.frame_id == 0x7E8 || msg.frame_id == 0x7E0) {
+      // Exhaust gas temp
+      if(msg.frame_data[2] == 0x3C)
+        egt = (((msg.frame_data[3] *256)+ msg.frame_data[4]) / 10) - 40;
+        
+      if (msg.frame_data[2] == 0xF4 && msg.frame_data[3] == 0x23)
+        fuelPressure = ((((msg.frame_data[4]*256)+msg.frame_data[5])*0x1D) / 0x14);
+    }
+    
+    sprintf(lcdString, "F:%4d E:%3d", fuelPressure, egt);
+    break;
+    
 
-    /*
-    if( msg.frame_id == 0x7E8 ){
-     knockRetard = (msg.frame_data[3]*7)/2;
-     }
-     
+    /*     
      if( msg.frame_id == 0x7E8 && msg.frame_data[2] == 0x11 && msg.frame_data[3] == 0x6B ){
      sparkAdvance = (msg.frame_data[5]*0x0A)/4;
      // sparkAdvance = msg.frame_data[5];
