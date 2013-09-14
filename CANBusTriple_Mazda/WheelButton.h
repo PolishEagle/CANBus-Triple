@@ -47,7 +47,7 @@ byte WheelButton::btnState = B0;
 byte WheelButton::getButtonDown()
 {
   int aBtn = analogRead(arrowButtonIn) / 100;
-  byte currentReading = B0;
+  byte currentReading = 0;
 
   switch(aBtn){
     case ARROW_BUTTON_NONE:
@@ -95,9 +95,11 @@ byte WheelButton::getButtonDown()
     // If different than what's already pressed save it.
     if (currentReading != btnState)
       btnState = currentReading;
+      
+    return btnState;
   }
   
-  return btnState;
+  return 0;
 }
 
 

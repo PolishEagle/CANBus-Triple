@@ -148,6 +148,7 @@ void loop() {
     Message msg = messageQueue.pop();
     CANBus channel = busses[msg.busId-1];
     
+    // TODO: uncomment below to post msg's to the serial port
     //SerialCommand::printMessageToSerial(msg);
     success = sendMessage( msg, channel );
     
