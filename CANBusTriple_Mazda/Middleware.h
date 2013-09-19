@@ -14,6 +14,4 @@ Message Middleware::process( Message msg )
 {
   return msg;
 }
-
-
 #endif
