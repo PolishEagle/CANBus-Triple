@@ -93,16 +93,25 @@ void MazdaLED::tick()
   }
 
   // Send knock retard query
-  // if( (millis() % 100) < 1 ) MazdaLED::knockServiceCall();
-  if( (millis() % 100) < 1 ) MazdaLED::egtServiceCall();
   // if( (millis() % 100) < 1 ) MazdaLED::advanceServiceCall();
   // if( (millis() % 100) < 1 ) MazdaLED::pWeightServiceCall();
-  
-  if( (millis() % 100) < 1 ) MazdaLED::knockServiceCall();  
-  if( (millis() % 203) < 1 ) MazdaLED::afrServiceCall();
-  if( (millis() % 206) < 1 ) MazdaLED::boostServiceCall();
-  if( (millis() % 503) < 1 ) MazdaLED::batServiceCall();
-  if( (millis() % 209) < 1 ) MazdaLED::fpServiceCall();
+  switch (currentScreen){
+     case 0:
+         if( (millis() % 100) < 1 ) MazdaLED::knockServiceCall();  
+         if( (millis() % 203) < 1 ) MazdaLED::afrServiceCall();
+         break;
+     case 1:
+         break;
+     case 2:
+         if( (millis() % 206) < 1 ) MazdaLED::boostServiceCall();
+         if( (millis() % 503) < 1 ) MazdaLED::batServiceCall();
+         break;
+         
+     case 3:
+         if( (millis() % 209) < 1 ) MazdaLED::fpServiceCall();
+         if( (millis() % 100) < 1 ) MazdaLED::egtServiceCall();
+         break;
+  }
 }
 
 

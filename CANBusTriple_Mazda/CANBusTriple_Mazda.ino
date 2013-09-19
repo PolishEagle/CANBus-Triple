@@ -17,6 +17,8 @@
 
 
 #define BOOT_LED 7
+// comment the debug line out to enable debug
+// #define DEBUG
 
 #define CAN1INT 0
 #define CAN1SELECT 0
@@ -40,7 +42,6 @@ CANBus busses[3] = { CANBus1, CANBus2, CANBus3 };
 CANBus SerialCommand::busses[3] = { CANBus1, CANBus2, CANBus3 }; // Maybe do this better
 
 byte wheelButton = 0;
-boolean debug = false;
 
 
 
@@ -49,18 +50,9 @@ void setup(){
   Serial.begin( 115200 );
   pinMode( BOOT_LED, OUTPUT );
   
-  digitalWrite( BOOT_LED, HIGH );
-  delay(100);
-  digitalWrite( BOOT_LED, LOW );
-  delay(100);
-  digitalWrite( BOOT_LED, HIGH );
-  delay(100);
-  digitalWrite( BOOT_LED, LOW );
-  delay(100);
-  digitalWrite( BOOT_LED, HIGH );
-  delay(100);
-  digitalWrite( BOOT_LED, LOW );
-  
+  // Toggle the LED 4 times
+  for (int i = 0; i < 4; i++)
+      ledToggle();
   
   // Setup CAN Busses 
   CANBus1.begin();
@@ -79,10 +71,8 @@ void setup(){
   CANBus3.baudConfig(125);
   CANBus3.setMode(NORMAL);
   
-  digitalWrite( BOOT_LED, HIGH );
-  delay(100);
-  digitalWrite( BOOT_LED, LOW );
-  delay(100);
+  // Toggle the LEDs
+  ledToggle();
   
   // Middleware setup
   MazdaLED::init( &messageQueue );
@@ -93,10 +83,16 @@ void setup(){
 void handleInterrupt0(){}
 void handleInterrupt1(){}
 
+// Toggle the LED on and off
+void ledToggle() {
+    digitalWrite( BOOT_LED, HIGH );
+    delay(100);
+    digitalWrite( BOOT_LED, LOW );
+    delay(100);
+}
 
 
 void loop() {
-  
  byte button = WheelButton::getButtonDown();
  if( wheelButton != button )
  {
@@ -136,11 +132,13 @@ void loop() {
   readBus( CANBus3 );
   
   // Process message stack
-  if( debug && !messageQueue.isEmpty() ){ 
+  #ifdef DEBUG
+  if(!messageQueue.isEmpty() ){ 
     Serial.print("{queueCount:" ); 
     Serial.print( messageQueue.count(), DEC ); 
     Serial.println("}"); 
   }
+  #endif
   
   boolean success = true;
   while( !messageQueue.isEmpty() && success ){
@@ -149,13 +147,16 @@ void loop() {
     CANBus channel = busses[msg.busId-1];
     
     // TODO: uncomment below to post msg's to the serial port
-    //SerialCommand::printMessageToSerial(msg);
+    SerialCommand::printMessageToSerial(msg);
     success = sendMessage( msg, channel );
     
     if( !success ){
       // TX Failure, add back to queue
       messageQueue.push(msg);
-      if(debug) Serial.println("ALL TX BUFFERS FULL ON " + busses[msg.busId-1].name );
+  
+      #ifdef DEBUG
+        Serial.println("ALL TX BUFFERS FULL ON " + busses[msg.busId-1].name );
+      #endif
     }
     
   }
@@ -212,12 +213,12 @@ boolean sendMessage( Message msg, CANBus channel ){
       break;
   }
   
-  if(debug){
+  #ifdef DEBUG
     Serial.print("Sent a message on TXB");
     Serial.print( ch, DEC );
     Serial.print(" via bus ");
     Serial.println( channel.name );
-  }
+  #endif
   
   digitalWrite( BOOT_LED, LOW );
   
@@ -275,7 +276,3 @@ void processMessage( Message msg ){
   }
   
 }
-
-
-
-

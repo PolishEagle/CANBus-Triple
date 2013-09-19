@@ -25,6 +25,5 @@ Message ChannelSwap::process( Message msg )
   }
 
   return msg;
-
 }
 
