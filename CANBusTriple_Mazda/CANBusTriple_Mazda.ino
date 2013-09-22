@@ -18,7 +18,7 @@
 
 #define BOOT_LED 7
 // comment the debug line out to enable debug
-// #define DEBUG
+//#define DEBUG
 
 #define CAN1INT 0
 #define CAN1SELECT 0
@@ -97,7 +97,7 @@ void loop() {
  if( wheelButton != button )
  {
    wheelButton = button;
-  
+   
    switch(wheelButton){
      case B10000000: // left
        MazdaLED::nextScreen(-1);

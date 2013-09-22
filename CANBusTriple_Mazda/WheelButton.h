@@ -1,5 +1,3 @@
-
-
 int arrowButtonIn = A0;
 int infoButtonIn = A1;
 
@@ -15,8 +13,20 @@ int infoButtonIn = A1;
 #define INFO_BUTTON_BACK 2
 #define INFO_BUTTON_INFO 3
 
+//Button codes
+#define B_ARROW_NONE   B00000000
+#define B_ARROW_LEFT   B10000000
+#define B_ARROW_RIGHT  B01000000
+#define B_ARROW_UP     B00100000
+#define B_ARROW_DOWN   B00010000
+#define B_ARROW_ENTER  B00001000
+#define B_INFO_NONE    B00000000
+#define B_INFO_NAV     B00000100
+#define B_INFO_BACK    B00000010
+#define B_INFO_INFO    B00000001
+
 // Button debouncing 
-#define BTN_DEBOUNCE_TIME 50
+#define BTN_DEBOUNCE_TIME 85
 
 
 /*
@@ -41,7 +51,7 @@ private:
 boolean WheelButton::arrowButtonIsDown = false;
 boolean WheelButton::infoButtonIsDown = false;
 long WheelButton::lastDebounceTime = 0;
-byte WheelButton::btnState = B0;
+byte WheelButton::btnState = 0;
 
 
 byte WheelButton::getButtonDown()
@@ -86,7 +96,10 @@ byte WheelButton::getButtonDown()
   
   // Lets do some debouncing
   if (currentReading != btnState)
+  {
     lastDebounceTime = millis();
+    btnState = currentReading;
+  }
   
   // if the button is still pressed after our predefined wait time
   // then it's the button we want to press.
@@ -101,6 +114,3 @@ byte WheelButton::getButtonDown()
   
   return 0;
 }
-
-
-
