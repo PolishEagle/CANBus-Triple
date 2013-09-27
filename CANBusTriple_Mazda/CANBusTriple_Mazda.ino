@@ -120,19 +120,18 @@ void loop() {
        break;
        
      case B_ARROW_ENTER:
-       MazdaLED::showStatusMessage("ENTER Button", 1000);
        // Run the service call to scan for check engine light codes
-       /*if (MazdaLED::currentScreen == 4)
-         MazdaLED::checkMILStatus();*/
+       if (MazdaLED::currentScreen == 4)
+         MazdaLED::checkMILStatus();
        break;
-       
+     
+     /* No actions with these yet
      case B_INFO_INFO:
-       MazdaLED::showStatusMessage("INFO Button ", 1000);
        break;
        
      case B_INFO_BACK:
-       MazdaLED::showStatusMessage("BACK Button ", 1000);
        break;
+     */
    }
  }
  

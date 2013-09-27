@@ -47,7 +47,7 @@ public:
 };
 
 // Set the default number of pages that are supported
-short MazdaLED::totalScreens = 4; // Set to 5 to re-enable Chk for MIL
+short MazdaLED::totalScreens = 5; // Set to 5 to re-enable Chk for MIL
 static char * screenDescription[13] = { "AFR & KR    ", "KPH & RPM   ", "Boost & BAT ", "FuelPr Exh.T", "Chk For MIL " };
 boolean MazdaLED::currentScreen = 0; //EEPROM.read(EepromCurrentScreen);
 
@@ -529,13 +529,14 @@ void MazdaLED::generateScreenMsg(Message msg)
   
   // Page for handling check engine searching
   case 4:
-    if((msg.frame_id == 0x7E8 || msg.frame_id == 0x7E0) && msg.frame_data[1] == 0x1 && msg.frame_data[2] == 0x1) {
+    if((msg.frame_id == 0x7E8 || msg.frame_id == 0x7E0) && msg.frame_data[2] == 0x1) {
       celCount = msg.frame_data[3] & 0x3F;
+      Serial.print(msg.frame_data[3]);
       celsProcessed = true;
     }
     
     if (celCount == 0)
-      sprintf(lcdString, (!celsProcessed ? "*No CEL's   " : "No CEL's    "));
+      sprintf(lcdString, (!celsProcessed ? "ENTER 2 srch" : "No CEL's    "));
     else
       sprintf(lcdString, "%3d CEL's   ", celCount);
     break;
@@ -564,6 +565,9 @@ void MazdaLED::nextScreen(short dir) {
 
   // Display what gauges are shown for this gauge
   MazdaLED::showStatusMessage(screenDescription[currentScreen], 1200);
+  
+  // Reset the CEL count page
+  celsProcessed = false;
 
   // Write the new screen value to the eeprom
   //EEPROM.write(EepromCurrentScreen, currentScreen);

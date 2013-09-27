@@ -2,16 +2,16 @@ int arrowButtonIn = A0;
 int infoButtonIn = A1;
 
 // Button states
-#define ARROW_BUTTON_NONE 9
-#define ARROW_BUTTON_ENTER 7
+#define ARROW_BUTTON_NONE 10
+#define ARROW_BUTTON_ENTER 8
 #define ARROW_BUTTON_UP 1
 #define ARROW_BUTTON_DOWN 2
-#define ARROW_BUTTON_LEFT 3
-#define ARROW_BUTTON_RIGHT 5
-#define INFO_BUTTON_NONE 10
+#define ARROW_BUTTON_LEFT 4
+#define ARROW_BUTTON_RIGHT 6
+#define INFO_BUTTON_NONE 12
 #define INFO_BUTTON_NAV 1
 #define INFO_BUTTON_BACK 2
-#define INFO_BUTTON_INFO 3
+#define INFO_BUTTON_INFO 4
 
 //Button codes
 #define B_ARROW_NONE   B00000000
@@ -56,11 +56,11 @@ byte WheelButton::btnState = 0;
 
 byte WheelButton::getButtonDown()
 {
-  int aBtn = analogRead(arrowButtonIn) / 100;
+  int btn = analogRead(arrowButtonIn) / 80;
   byte currentReading = 0;
   static byte lclBtnState = 0;
-
-  switch(aBtn){
+  
+  switch(btn){
     case ARROW_BUTTON_NONE:
       break;
     case ARROW_BUTTON_LEFT:
@@ -80,8 +80,8 @@ byte WheelButton::getButtonDown()
       break;
   }
 
-  int iBtn = analogRead(infoButtonIn) / 100;
-  switch( iBtn ){
+  btn = analogRead(infoButtonIn) / 80;
+  switch( btn ){
     case INFO_BUTTON_NONE:
       break;
     case INFO_BUTTON_NAV:
