@@ -58,24 +58,25 @@ byte WheelButton::getButtonDown()
 {
   int aBtn = analogRead(arrowButtonIn) / 100;
   byte currentReading = 0;
+  static byte lclBtnState = 0;
 
   switch(aBtn){
     case ARROW_BUTTON_NONE:
       break;
     case ARROW_BUTTON_LEFT:
-      currentReading += B10000000;
+      currentReading += B_ARROW_LEFT;
       break;
     case ARROW_BUTTON_RIGHT:
-      currentReading += B01000000;
+      currentReading += B_ARROW_RIGHT;
       break;
     case ARROW_BUTTON_UP:
-      currentReading += B00100000;
+      currentReading += B_ARROW_UP;
       break;
     case ARROW_BUTTON_DOWN:
-      currentReading += B00010000;
+      currentReading += B_ARROW_DOWN;
       break;
     case ARROW_BUTTON_ENTER:
-      currentReading += B00001000;
+      currentReading += B_ARROW_ENTER;
       break;
   }
 
@@ -84,33 +85,27 @@ byte WheelButton::getButtonDown()
     case INFO_BUTTON_NONE:
       break;
     case INFO_BUTTON_NAV:
-      currentReading += B00000100;
+      currentReading += B_INFO_NAV;
       break;
     case INFO_BUTTON_BACK:
-      currentReading += B00000010;
+      currentReading += B_INFO_BACK;
       break;
     case INFO_BUTTON_INFO:
-      currentReading += B0000001;
+      currentReading += B_INFO_INFO;
       break;
   }
   
   // Lets do some debouncing
-  if (currentReading != btnState)
+  if (currentReading != lclBtnState)
   {
     lastDebounceTime = millis();
-    btnState = currentReading;
+    lclBtnState = currentReading;
   }
   
   // if the button is still pressed after our predefined wait time
   // then it's the button we want to press.
-  if ((millis() - lastDebounceTime) > BTN_DEBOUNCE_TIME)
-  {
-    // If different than what's already pressed save it.
-    if (currentReading != btnState)
-      btnState = currentReading;
-      
-    return btnState;
-  }
+  if ((millis() - lastDebounceTime) > BTN_DEBOUNCE_TIME && btnState != lclBtnState)
+    btnState = lclBtnState;
   
-  return 0;
+  return btnState;
 }

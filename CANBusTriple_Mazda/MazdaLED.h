@@ -22,6 +22,7 @@ public:
   static boolean enabled;
   static boolean currentScreen;
   static short totalScreens;
+  static boolean celsProcessed;
   static void showStatusMessage(char* str, int time);
   static char lcdString[13];
   static char lcdStockString[13];
@@ -41,12 +42,13 @@ public:
   static void fpServiceCall();
   static void advanceServiceCall();
   static void pWeightServiceCall();
+  static void checkMILStatus();
   static void nextScreen(short dir);
 };
 
 // Set the default number of pages that are supported
-short MazdaLED::totalScreens = 4;
-static char * screenDescription[13] = { "AFR & KR    ", "KPH & RPM   ", "Boost & BAT ", "FuelPr Exh.T" };
+short MazdaLED::totalScreens = 4; // Set to 5 to re-enable Chk for MIL
+static char * screenDescription[13] = { "AFR & KR    ", "KPH & RPM   ", "Boost & BAT ", "FuelPr Exh.T", "Chk For MIL " };
 boolean MazdaLED::currentScreen = 0; //EEPROM.read(EepromCurrentScreen);
 
 boolean MazdaLED::enabled = EEPROM.read(EepromEnabledBit);
@@ -67,6 +69,8 @@ int speedKph = 0;
 int engineRPM = 0;
 int bat = 0;
 int fuelPressure = 0;
+int celCount = 0;
+boolean MazdaLED::celsProcessed = false;
 
 unsigned long MazdaLED::animationCounter = 0;
 unsigned long MazdaLED::stockOverrideTimer = 4000;
@@ -81,7 +85,9 @@ void MazdaLED::init( QueueArray<Message> *q )
 void MazdaLED::tick()
 {
   if(!enabled) return;
-
+  
+  static boolean lastRunTime = 0;
+  
   // New LED update CAN message for fast updates
   // check stockOverrideTimer, no need to do fast updates while stock override is active
   if( (updateCounter+fastUpdateDelay) < millis() && stockOverrideTimer < millis() ){
@@ -92,21 +98,26 @@ void MazdaLED::tick()
   // Send knock retard query
   // if( (millis() % 100) < 1 ) MazdaLED::advanceServiceCall();
   // if( (millis() % 100) < 1 ) MazdaLED::pWeightServiceCall();
+  
+  // Run the service calls every 150 ms
+  if ((millis() - lastRunTime) >= 150) { lastRunTime = millis(); }
+  else { return; }
+  
   switch (currentScreen){
      case 0:
-         if( (millis() % 100) < 1 ) MazdaLED::knockServiceCall();  
-         if( (millis() % 100) < 1 ) MazdaLED::afrServiceCall();
+         MazdaLED::knockServiceCall();
+         MazdaLED::afrServiceCall();
          break;
      case 1:
          break;
      case 2:
-         if( (millis() % 100) < 1 ) MazdaLED::boostServiceCall();
-         if( (millis() % 100) < 1 ) MazdaLED::batServiceCall();
+         MazdaLED::boostServiceCall();
+         MazdaLED::batServiceCall();
          break;
          
      case 3:
-         if( (millis() % 100) < 1 ) MazdaLED::fpServiceCall();
-         if( (millis() % 100) < 1 ) MazdaLED::egtServiceCall();
+         MazdaLED::fpServiceCall();
+         MazdaLED::egtServiceCall();
          break;
   }
 }
@@ -261,6 +272,23 @@ void MazdaLED::pWeightServiceCall()
   mainQueue->push(msg);
 }
 
+void MazdaLED::checkMILStatus(){
+  Message msg;
+  msg.busId = 2;
+  msg.frame_id = 0x7E0;
+  msg.frame_data[0] = 0x02;
+  msg.frame_data[1] = 0x01;
+  msg.frame_data[2] = 0x01;
+  msg.frame_data[3] = 0x00;
+  msg.frame_data[4] = 0x00;
+  msg.frame_data[5] = 0x00;
+  msg.frame_data[6] = 0x00;
+  msg.frame_data[7] = 0x00;
+  msg.length = 8;
+  msg.dispatch = true;
+  mainQueue->push(msg);
+}
+
 
 
 void MazdaLED::pushNewMessage()
@@ -270,7 +298,7 @@ void MazdaLED::pushNewMessage()
   Message msg;
   msg.busId = 3;
   msg.frame_id = 0x290;
-  msg.frame_data[0] = 0xC0;  // Look this up from log
+  msg.frame_data[0] = 0x90;  // Look this up from log
   msg.frame_data[1] = lcd[0];
   msg.frame_data[2] = lcd[1];
   msg.frame_data[3] = lcd[2];
@@ -301,7 +329,7 @@ void MazdaLED::pushNewMessage()
   Message msg3;
   msg3.busId = 1;
   msg3.frame_id = 0x28F;
-  msg3.frame_data[0] = 0xC0;
+  msg3.frame_data[0] = 0x90;
   msg3.frame_data[1] = 0x0;
   msg3.frame_data[2] = 0x0;
   msg3.frame_data[3] = 0x0;
@@ -340,7 +368,7 @@ Message MazdaLED::process(Message msg)
 
   if( msg.frame_id == 0x28F && stockOverrideTimer < millis() ){
     // Block extras
-    msg.frame_data[0] = 0xC0;
+    //msg.frame_data[0] = 0x90;
     msg.frame_data[1] = 0x0;
     msg.frame_data[2] = 0x0;
     msg.frame_data[3] = 0x0;
@@ -450,7 +478,7 @@ void MazdaLED::generateScreenMsg(Message msg)
       }
     }
 
-    sprintf(lcdString, "A%2d.%1d KR%2d.%1d", afrWhole, afrRemainder, krdWhole, krdRemainder);
+    sprintf(lcdString, "A%2d.%1d KR%1d.%02d", afrWhole, afrRemainder, krdWhole, krdRemainder);
     break;
 
     // Page two to show RPM and KM/h
@@ -490,13 +518,26 @@ void MazdaLED::generateScreenMsg(Message msg)
     if(msg.frame_id == 0x7E8 || msg.frame_id == 0x7E0) {
       // Exhaust gas temp
       if(msg.frame_data[2] == 0x3C)
-        egt = (((msg.frame_data[3] *256)+ msg.frame_data[4]) / 10) - 40;
+        egt = (((msg.frame_data[3] << 8)+ msg.frame_data[4]) / 10) - 40;
         
       if (msg.frame_data[2] == 0xF4 && msg.frame_data[3] == 0x23)
-        fuelPressure = ((((msg.frame_data[4]*256)+msg.frame_data[5])*0x1D) / 0x14);
+        fuelPressure = ((((msg.frame_data[4] << 8)+msg.frame_data[5])*0x1D) / 0x14);
     }
     
     sprintf(lcdString, "F:%4d E:%3d", fuelPressure, egt);
+    break;
+  
+  // Page for handling check engine searching
+  case 4:
+    if((msg.frame_id == 0x7E8 || msg.frame_id == 0x7E0) && msg.frame_data[1] == 0x1 && msg.frame_data[2] == 0x1) {
+      celCount = msg.frame_data[3] & 0x3F;
+      celsProcessed = true;
+    }
+    
+    if (celCount == 0)
+      sprintf(lcdString, (!celsProcessed ? "*No CEL's   " : "No CEL's    "));
+    else
+      sprintf(lcdString, "%3d CEL's   ", celCount);
     break;
     
     /*     

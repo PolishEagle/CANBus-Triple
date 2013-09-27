@@ -19,6 +19,7 @@
 #define BOOT_LED 7
 // comment the debug line out to enable debug
 //#define DEBUG
+//#define MESSAGES_TO_SERIAL
 
 #define CAN1INT 0
 #define CAN1SELECT 0
@@ -41,7 +42,7 @@ QueueArray<Message> messageQueue;
 CANBus busses[3] = { CANBus1, CANBus2, CANBus3 };
 CANBus SerialCommand::busses[3] = { CANBus1, CANBus2, CANBus3 }; // Maybe do this better
 
-byte wheelButton = 0;
+static byte wheelButton = 0;
 
 
 
@@ -99,28 +100,40 @@ void loop() {
    wheelButton = button;
    
    switch(wheelButton){
-     case B10000000: // left
+     case B_ARROW_DOWN: // down
+     case B_ARROW_LEFT: // left
        MazdaLED::nextScreen(-1);
-     break;
-     case B01000000: // right
+       break;
+       
+     case B_ARROW_UP:    // up
+     case B_ARROW_RIGHT: // right
        MazdaLED::nextScreen(1);
-     break;
-     case B00100000: // up
-       MazdaLED::nextScreen(1);
-     break;
-     case B00010000: // down
-       MazdaLED::nextScreen(-1);
-     break;
-     case B1000010:
+       break;
+       
+     case (B_INFO_BACK | B_ARROW_RIGHT):
        MazdaLED::enabled = !MazdaLED::enabled;
        EEPROM.write(EepromEnabledBit, MazdaLED::enabled); // For testing, proper settings in EEPROM TBD
        if(MazdaLED::enabled)
          MazdaLED::showStatusMessage("MazdaLED ON ", 2000);
          else
          MazdaLED::showStatusMessage("MazdaLED OFF", 2000);
-     break;
+       break;
+       
+     case B_ARROW_ENTER:
+       MazdaLED::showStatusMessage("ENTER Button", 1000);
+       // Run the service call to scan for check engine light codes
+       /*if (MazdaLED::currentScreen == 4)
+         MazdaLED::checkMILStatus();*/
+       break;
+       
+     case B_INFO_INFO:
+       MazdaLED::showStatusMessage("INFO Button ", 1000);
+       break;
+       
+     case B_INFO_BACK:
+       MazdaLED::showStatusMessage("BACK Button ", 1000);
+       break;
    }
- 
  }
  
   // All Middleware ticks (Like loop() for middleware)
@@ -146,8 +159,9 @@ void loop() {
     Message msg = messageQueue.pop();
     CANBus channel = busses[msg.busId-1];
     
-    // TODO: uncomment below to post msg's to the serial port
+    #ifdef MESSAGES_TO_SERIAL
     SerialCommand::printMessageToSerial(msg);
+    #endif
     success = sendMessage( msg, channel );
     
     if( !success ){
