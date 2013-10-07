@@ -28,6 +28,8 @@ int infoButtonIn = A1;
 // Button debouncing 
 #define BTN_DEBOUNCE_TIME 85
 
+#define LONG_PRESS_MIN_TIME 3000
+
 
 /*
 *  Returns a byte indicating wheel buttons that are down
@@ -39,6 +41,9 @@ public:
   static byte getButtonDown();
   static boolean arrowButtonIsDown;
   static boolean infoButtonIsDown;
+  static boolean longPress;
+  static boolean controlsEnabled;
+  static boolean longPressHandled;
   
   static byte btnState;            // Stores the current button reading
   static long lastDebounceTime;    // The last time the output was toggled
@@ -52,6 +57,14 @@ boolean WheelButton::arrowButtonIsDown = false;
 boolean WheelButton::infoButtonIsDown = false;
 long WheelButton::lastDebounceTime = 0;
 byte WheelButton::btnState = 0;
+// Long press
+boolean WheelButton::longPress = false;
+boolean WheelButton::controlsEnabled = true;
+boolean WheelButton::longPressHandled = true;
+
+
+// Keep track of the time a button is pressed
+static int pressStart = 0;
 
 
 byte WheelButton::getButtonDown()
@@ -59,7 +72,7 @@ byte WheelButton::getButtonDown()
   int btn = analogRead(arrowButtonIn) / 80;
   byte currentReading = 0;
   static byte lclBtnState = 0;
-  
+
   switch(btn){
     case ARROW_BUTTON_NONE:
       break;
@@ -105,7 +118,25 @@ byte WheelButton::getButtonDown()
   // if the button is still pressed after our predefined wait time
   // then it's the button we want to press.
   if ((millis() - lastDebounceTime) > BTN_DEBOUNCE_TIME && btnState != lclBtnState)
+  {
     btnState = lclBtnState;
+    
+    // Save the button down time for long press calc.
+    pressStart = millis();
+  }
   
-  return btnState;
+  // if the button is down lets determine if its a long pres
+  if ((millis() - pressStart) >= LONG_PRESS_MIN_TIME && btnState != 0 && !longPressHandled)
+    longPress = true;
+  else if (btnState == 0)
+  {
+    longPress = false;
+    longPressHandled = false;
+  }
+  
+  // if controls are disabled only send the back button
+  if (!controlsEnabled && currentReading != B_INFO_BACK)
+      return 0;
+  else
+      return btnState;
 }

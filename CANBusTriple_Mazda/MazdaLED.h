@@ -22,6 +22,7 @@ public:
   static boolean enabled;
   static boolean currentScreen;
   static short totalScreens;
+  static int celCount;
   static boolean celsProcessed;
   static void showStatusMessage(char* str, int time);
   static char lcdString[13];
@@ -43,12 +44,13 @@ public:
   static void advanceServiceCall();
   static void pWeightServiceCall();
   static void checkMILStatus();
+  static void clearMIL();
   static void nextScreen(short dir);
 };
 
 // Set the default number of pages that are supported
-short MazdaLED::totalScreens = 5; // Set to 5 to re-enable Chk for MIL
-static char * screenDescription[13] = { "AFR & KR    ", "KPH & RPM   ", "Boost & BAT ", "FuelPr Exh.T", "Chk For MIL " };
+short MazdaLED::totalScreens = 6;
+static char * screenDescription[13] = { "AFR & KR    ", "KPH & RPM   ", "Boost & BAT ", "FuelPr Exh.T", "Chk For CEL ", "Clear CEL   " };
 boolean MazdaLED::currentScreen = 0; //EEPROM.read(EepromCurrentScreen);
 
 boolean MazdaLED::enabled = EEPROM.read(EepromEnabledBit);
@@ -69,7 +71,7 @@ int speedKph = 0;
 int engineRPM = 0;
 int bat = 0;
 int fuelPressure = 0;
-int celCount = 0;
+int MazdaLED::celCount = 0;
 boolean MazdaLED::celsProcessed = false;
 
 unsigned long MazdaLED::animationCounter = 0;
@@ -132,7 +134,7 @@ void MazdaLED::showStatusMessage(char* str, int time){
 void MazdaLED::knockServiceCall(){
   Message msg;
   msg.busId = 2;
-  msg.frame_id = 0x7E0;     // 02 01 0D 00 00 00 00 00
+  msg.frame_id = 0x7DF;     // 02 01 0D 00 00 00 00 00
   msg.frame_data[0] = 0x03;
   msg.frame_data[1] = 0x22;
   msg.frame_data[2] = 0x03;
@@ -168,7 +170,7 @@ void MazdaLED::egtServiceCall()
 {
   Message msg;
   msg.busId = 2;
-  msg.frame_id = 0x7E0;
+  msg.frame_id = 0x7DF;
   msg.frame_data[0] = 0x02;
   msg.frame_data[1] = 0x01;
   msg.frame_data[2] = 0x3c;
@@ -186,7 +188,7 @@ void MazdaLED::afrServiceCall()
 {
   Message msg;
   msg.busId = 2;
-  msg.frame_id = 0x7E0;
+  msg.frame_id = 0x7DF;
   msg.frame_data[0] = 0x03;
   msg.frame_data[1] = 0x22;
   msg.frame_data[2] = 0xDA;
@@ -204,7 +206,7 @@ void MazdaLED::boostServiceCall()
 {
   Message msg;
   msg.busId = 2;
-  msg.frame_id = 0x7E0;
+  msg.frame_id = 0x7DF;
   msg.frame_data[0] = 0x02;
   msg.frame_data[1] = 0x01;
   msg.frame_data[2] = 0x0B;
@@ -222,7 +224,7 @@ void MazdaLED::batServiceCall()
 {
   Message msg;
   msg.busId = 2;
-  msg.frame_id = 0x7E0;
+  msg.frame_id = 0x7DF;
   msg.frame_data[0] = 0x03;
   msg.frame_data[1] = 0x22;
   msg.frame_data[2] = 0x03;
@@ -240,7 +242,7 @@ void MazdaLED::fpServiceCall()
 {
   Message msg;
   msg.busId = 2;
-  msg.frame_id = 0x7E0;
+  msg.frame_id = 0x7DF;
   msg.frame_data[0] = 0x03;
   msg.frame_data[1] = 0x22;
   msg.frame_data[2] = 0xF4;
@@ -275,7 +277,7 @@ void MazdaLED::pWeightServiceCall()
 void MazdaLED::checkMILStatus(){
   Message msg;
   msg.busId = 2;
-  msg.frame_id = 0x7E0;
+  msg.frame_id = 0x7DF;
   msg.frame_data[0] = 0x02;
   msg.frame_data[1] = 0x01;
   msg.frame_data[2] = 0x01;
@@ -287,6 +289,25 @@ void MazdaLED::checkMILStatus(){
   msg.length = 8;
   msg.dispatch = true;
   mainQueue->push(msg);
+}
+
+void MazdaLED::clearMIL(){
+  Message msg;
+  msg.busId = 2;
+  msg.frame_id = 0x7DF;
+  msg.frame_data[0] = 0x01;
+  msg.frame_data[1] = 0x04;
+  msg.frame_data[2] = 0x00;
+  msg.frame_data[3] = 0x00;
+  msg.frame_data[4] = 0x00;
+  msg.frame_data[5] = 0x00;
+  msg.frame_data[6] = 0x00;
+  msg.frame_data[7] = 0x00;
+  msg.length = 8;
+  msg.dispatch = true;
+  mainQueue->push(msg);
+  
+  sprintf(lcdString, "CEL Cleared");
 }
 
 
@@ -499,7 +520,7 @@ void MazdaLED::generateScreenMsg(Message msg)
     if(msg.frame_id == 0x7E8 || msg.frame_id == 0x7E0) {
       // Boost
       if (msg.frame_data[1] == 0x41 && msg.frame_data[2] == 0x0B) {
-        boost = ((msg.frame_data[3] * 0x91)/0x64)-0x91;
+        boost = (msg.frame_data[3] * 1.45) - 0x91;
         boostWhole = boost/10;
         boostRemainder = abs((boost % 10)); 
       }
@@ -510,7 +531,7 @@ void MazdaLED::generateScreenMsg(Message msg)
       }
     }
     
-    sprintf(lcdString, "P%3d.%1d T%3d", boostWhole, boostRemainder, bat);
+    sprintf(lcdString, "B%3d.%1d T%3d", boostWhole, boostRemainder, bat);
     break;
   
   // Fuel preasure (PSI) and Exhaust gas temp
@@ -520,8 +541,9 @@ void MazdaLED::generateScreenMsg(Message msg)
       if(msg.frame_data[2] == 0x3C)
         egt = (((msg.frame_data[3] << 8)+ msg.frame_data[4]) / 10) - 40;
         
+      // fuel rail pressure
       if (msg.frame_data[2] == 0xF4 && msg.frame_data[3] == 0x23)
-        fuelPressure = ((((msg.frame_data[4] << 8)+msg.frame_data[5])*0x1D) / 0x14);
+        fuelPressure = ((msg.frame_data[4] << 8) + msg.frame_data[5]) * 1.45;
     }
     
     sprintf(lcdString, "F:%4d E:%3d", fuelPressure, egt);
@@ -531,14 +553,18 @@ void MazdaLED::generateScreenMsg(Message msg)
   case 4:
     if((msg.frame_id == 0x7E8 || msg.frame_id == 0x7E0) && msg.frame_data[2] == 0x1) {
       celCount = msg.frame_data[3] & 0x3F;
-      Serial.print(msg.frame_data[3]);
       celsProcessed = true;
     }
     
     if (celCount == 0)
-      sprintf(lcdString, (!celsProcessed ? "ENTER 2 srch" : "No CEL's    "));
+      sprintf(lcdString, (!celsProcessed ? "ENTER 2 srch" : "No Codes"));
     else
-      sprintf(lcdString, "%3d CEL's   ", celCount);
+      sprintf(lcdString, "%3d Codes   ", celCount);
+    break;
+    
+  // Page for clearing the check engine light
+  case 5:
+    sprintf(lcdString, "ENTER 2 clr");
     break;
     
     /*     

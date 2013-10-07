@@ -4,6 +4,10 @@
 ***/
 
 
+// comment the debug line out to enable debug
+//#define DEBUG
+//#define MESSAGES_TO_SERIAL
+
 #include <SPI.h>
 #include <CANBus.h>
 #include <Message.h>
@@ -17,9 +21,6 @@
 
 
 #define BOOT_LED 7
-// comment the debug line out to enable debug
-//#define DEBUG
-//#define MESSAGES_TO_SERIAL
 
 #define CAN1INT 0
 #define CAN1SELECT 0
@@ -43,7 +44,6 @@ CANBus busses[3] = { CANBus1, CANBus2, CANBus3 };
 CANBus SerialCommand::busses[3] = { CANBus1, CANBus2, CANBus3 }; // Maybe do this better
 
 static byte wheelButton = 0;
-
 
 
 void setup(){
@@ -114,22 +114,48 @@ void loop() {
        MazdaLED::enabled = !MazdaLED::enabled;
        EEPROM.write(EepromEnabledBit, MazdaLED::enabled); // For testing, proper settings in EEPROM TBD
        if(MazdaLED::enabled)
-         MazdaLED::showStatusMessage("MazdaLED ON ", 2000);
-         else
-         MazdaLED::showStatusMessage("MazdaLED OFF", 2000);
+           MazdaLED::showStatusMessage("MazdaLED ON ", 2000);
+       else
+           MazdaLED::showStatusMessage("MazdaLED OFF", 2000);
        break;
        
      case B_ARROW_ENTER:
        // Run the service call to scan for check engine light codes
-       if (MazdaLED::currentScreen == 4)
-         MazdaLED::checkMILStatus();
+       switch(MazdaLED::currentScreen)
+       {
+         case 4:
+             MazdaLED::checkMILStatus();
+             break;
+         case 5:
+             if (MazdaLED::celCount > 0)
+             {
+                 MazdaLED::clearMIL();
+                 MazdaLED::showStatusMessage("Codes Clear!", 1500);
+             }
+             else
+             {
+                 MazdaLED::showStatusMessage("None to clr", 1500);
+             }
+             break;
+       }
        break;
      
-     /* No actions with these yet
-     case B_INFO_INFO:
-       break;
-       
      case B_INFO_BACK:
+       // If the BACK btn is held for a long press toggle button controls
+       if (WheelButton::longPress)
+       {
+           WheelButton::longPressHandled = true;
+           WheelButton::controlsEnabled = !WheelButton::controlsEnabled;
+           
+           if (WheelButton::controlsEnabled)
+               MazdaLED::showStatusMessage("Controls On", 1500);
+           else
+               MazdaLED::showStatusMessage("Controls Off", 1500);
+       }   
+       break;
+     
+    /* No actions with these yet  
+     case B_INFO_INFO:
        break;
      */
    }
