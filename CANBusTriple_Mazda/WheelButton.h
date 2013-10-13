@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 int arrowButtonIn = A0;
 int infoButtonIn = A1;
 
@@ -28,8 +30,7 @@ int infoButtonIn = A1;
 // Button debouncing 
 #define BTN_DEBOUNCE_TIME 85
 
-#define LONG_PRESS_MIN_TIME 3000
-
+#define LONG_PRESS_MIN_TIME 2000
 
 /*
 *  Returns a byte indicating wheel buttons that are down
@@ -39,11 +40,12 @@ int infoButtonIn = A1;
 class WheelButton {
 public:
   static byte getButtonDown();
+  static void setLongPressHandler(void (*handler)(void));
+  
   static boolean arrowButtonIsDown;
   static boolean infoButtonIsDown;
-  static boolean longPress;
   static boolean controlsEnabled;
-  static boolean longPressHandled;
+  static boolean longPressTriggered;
   
   static byte btnState;            // Stores the current button reading
   static long lastDebounceTime;    // The last time the output was toggled
@@ -58,13 +60,13 @@ boolean WheelButton::infoButtonIsDown = false;
 long WheelButton::lastDebounceTime = 0;
 byte WheelButton::btnState = 0;
 // Long press
-boolean WheelButton::longPress = false;
 boolean WheelButton::controlsEnabled = true;
-boolean WheelButton::longPressHandled = true;
-
+boolean WheelButton::longPressTriggered = false;
+static void (*longPressFunction)(void) = NULL;
 
 // Keep track of the time a button is pressed
-static int pressStart = 0;
+static long pressStart = 0;
+
 
 
 byte WheelButton::getButtonDown()
@@ -126,12 +128,18 @@ byte WheelButton::getButtonDown()
   }
   
   // if the button is down lets determine if its a long pres
-  if ((millis() - pressStart) >= LONG_PRESS_MIN_TIME && btnState != 0 && !longPressHandled)
-    longPress = true;
-  else if (btnState == 0)
+  if (!longPressTriggered && pressStart != -1 && btnState != 0 && (millis() - pressStart) >= LONG_PRESS_MIN_TIME)
   {
-    longPress = false;
-    longPressHandled = false;
+    longPressTriggered = true;
+    
+    // Call the function if there's a handler
+    (*longPressFunction)();
+  }
+    
+  if (btnState == 0)
+  {
+    longPressTriggered = false;
+    pressStart = -1;
   }
   
   // if controls are disabled only send the back button
@@ -139,4 +147,10 @@ byte WheelButton::getButtonDown()
       return 0;
   else
       return btnState;
+}
+
+/* Sets the function that handes the long press */
+void WheelButton::setLongPressHandler(void (*handler)(void))
+{
+    longPressFunction = handler;
 }

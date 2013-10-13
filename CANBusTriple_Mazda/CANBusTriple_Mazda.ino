@@ -46,8 +46,8 @@ CANBus SerialCommand::busses[3] = { CANBus1, CANBus2, CANBus3 }; // Maybe do thi
 static byte wheelButton = 0;
 
 
-void setup(){
-  
+void setup()
+{  
   Serial.begin( 115200 );
   pinMode( BOOT_LED, OUTPUT );
   
@@ -79,6 +79,7 @@ void setup(){
   MazdaLED::init( &messageQueue );
   SerialCommand::init( &messageQueue, busses, 0 );
   
+  WheelButton::setLongPressHandler(&longButtonPressHandler);
 }
 
 void handleInterrupt0(){}
@@ -138,20 +139,6 @@ void loop() {
              }
              break;
        }
-       break;
-     
-     case B_INFO_BACK:
-       // If the BACK btn is held for a long press toggle button controls
-       if (WheelButton::longPress)
-       {
-           WheelButton::longPressHandled = true;
-           WheelButton::controlsEnabled = !WheelButton::controlsEnabled;
-           
-           if (WheelButton::controlsEnabled)
-               MazdaLED::showStatusMessage("Controls On", 1500);
-           else
-               MazdaLED::showStatusMessage("Controls Off", 1500);
-       }   
        break;
      
     /* No actions with these yet  
@@ -312,6 +299,22 @@ void processMessage( Message msg ){
   
   if( msg.dispatch == true ){
     messageQueue.push( msg );
-  }
-  
+  } 
+}
+
+
+/* Function to handle long presses*/
+void longButtonPressHandler()
+{
+    switch (WheelButton::btnState)
+    {
+      case B_INFO_BACK:
+        WheelButton::controlsEnabled = !WheelButton::controlsEnabled;
+         
+        if (WheelButton::controlsEnabled)
+          MazdaLED::showStatusMessage("Controls On", 1500);
+        else
+          MazdaLED::showStatusMessage("Controls Off", 1500);
+        break;
+    }
 }
