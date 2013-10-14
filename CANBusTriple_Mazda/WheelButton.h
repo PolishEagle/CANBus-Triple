@@ -65,7 +65,7 @@ boolean WheelButton::longPressTriggered = false;
 static void (*longPressFunction)(void) = NULL;
 
 // Keep track of the time a button is pressed
-static long pressStart = 0;
+static unsigned long pressStart = 0;
 
 
 
@@ -128,7 +128,7 @@ byte WheelButton::getButtonDown()
   }
   
   // if the button is down lets determine if its a long pres
-  if (!longPressTriggered && pressStart != -1 && btnState != 0 && (millis() - pressStart) >= LONG_PRESS_MIN_TIME)
+  if (!longPressTriggered && btnState != 0 && (millis() - pressStart) >= LONG_PRESS_MIN_TIME)
   {
     longPressTriggered = true;
     
@@ -137,10 +137,7 @@ byte WheelButton::getButtonDown()
   }
     
   if (btnState == 0)
-  {
     longPressTriggered = false;
-    pressStart = -1;
-  }
   
   // if controls are disabled only send the back button
   if (!controlsEnabled && currentReading != B_INFO_BACK)
