@@ -17,14 +17,16 @@ private:
   static int fastUpdateDelay;
   static void generateScreenMsg(Message msg);
 public:
-  static void init( QueueArray<Message> *q );
+  static void init( QueueArray<Message> *q, byte enabled );
   static void tick();
   static boolean enabled;
   static boolean currentScreen;
   static short totalScreens;
+  
   static int celCount;
   static boolean celsProcessed;
   static void showStatusMessage(char* str, int time);
+  static void showNewPageMessage();
   static char lcdString[13];
   static char lcdStockString[13];
   static char lcdStatusString[13];
@@ -34,6 +36,7 @@ public:
   static void setStatusTime( int n );
   static unsigned long animationCounter;
   static Message process( Message msg );
+  
   static char* currentLcdString();
   static void knockServiceCall();
   static void egtServiceCall();
@@ -53,14 +56,21 @@ short MazdaLED::totalScreens = 6;
 static char * screenDescription[13] = { "AFR & KR    ", "KPH & RPM   ", "Boost & BAT ", "FuelPr Exh.T", "Chk For CEL ", "Clear CEL   " };
 boolean MazdaLED::currentScreen = 0; //EEPROM.read(EepromCurrentScreen);
 
-boolean MazdaLED::enabled = EEPROM.read(EepromEnabledBit);
+boolean MazdaLED::enabled = cbt_settings.displayEnabled;
 unsigned long MazdaLED::updateCounter = 0;
 int MazdaLED::fastUpdateDelay = 500;
+
+unsigned long MazdaLED::animationCounter = 0;
+unsigned long MazdaLED::stockOverrideTimer = 4000;
+unsigned long MazdaLED::statusOverrideTimer = 0;
+
 QueueArray<Message>* MazdaLED::mainQueue;
 char MazdaLED::lcdString[13] = "CANBusTriple";
 char MazdaLED::lcdStockString[13] = "            ";
 char MazdaLED::lcdStatusString[13] = "            ";
 
+
+// Variables used in the service calls
 int afr = 0, afrWhole = 0, afrRemainder = 0;
 int krd = 0, krdWhole = 0, krdRemainder = 0;
 int boost = 0, boostWhole = 0, boostRemainder = 0;
@@ -74,18 +84,18 @@ int fuelPressure = 0;
 int MazdaLED::celCount = 0;
 boolean MazdaLED::celsProcessed = false;
 
-unsigned long MazdaLED::animationCounter = 0;
-unsigned long MazdaLED::stockOverrideTimer = 4000;
-unsigned long MazdaLED::statusOverrideTimer = 0;
 
+byte egtSettings[2][3];
 
-void MazdaLED::init( QueueArray<Message> *q )
+void MazdaLED::init( QueueArray<Message> *q, byte enabled )
 {
   mainQueue = q;
+  MazdaLED::enabled = (enabled == 1);
 }
 
+
 void MazdaLED::tick()
-{
+{   
   if(!enabled) return;
   
   static boolean lastRunTime = 0;
@@ -96,7 +106,7 @@ void MazdaLED::tick()
     pushNewMessage();
     updateCounter = millis();
   }
-
+  
   // Send knock retard query
   // if( (millis() % 100) < 1 ) MazdaLED::advanceServiceCall();
   // if( (millis() % 100) < 1 ) MazdaLED::pWeightServiceCall();
@@ -386,7 +396,7 @@ void MazdaLED::setStatusTime( int n ){
 Message MazdaLED::process(Message msg)
 {
   if(!enabled) return msg;
-
+  
   if( msg.frame_id == 0x28F && stockOverrideTimer < millis() ){
     // Block extras
     //msg.frame_data[0] = 0x90;
@@ -416,11 +426,6 @@ Message MazdaLED::process(Message msg)
       lcdStockString[4] = msg.frame_data[5];
       lcdStockString[5] = msg.frame_data[6];
       lcdStockString[6] = msg.frame_data[7];
-
-      /*
-        Serial.print( "lcdStockString: ");
-       Serial.println( lcdStockString );
-       */
     }
     char* lcd = currentLcdString();
 
@@ -459,7 +464,32 @@ Message MazdaLED::process(Message msg)
     msg.frame_data[5] = lcd[11];
     msg.dispatch = true;
   }
-
+  
+  // TODO: Make float compat
+  byte incIndex = ( cbt_settings.displayIndex+1 > Settings::pidLength-1 ) ? 0 : cbt_settings.displayIndex+1;
+  char buffer[6] = "     ";  
+  
+  sprintf(lcdString, "            ");
+  
+  // TODO: Tidy up with a loop
+  if( cbt_settings.pids[cbt_settings.displayIndex].settings & B00000001 == B00000001 ){ // add decimal flag
+  sprintf(lcdString, "%c:%d.%d", cbt_settings.pids[cbt_settings.displayIndex].name[0], 
+                                   cbt_settings.pids[cbt_settings.displayIndex].value/10,
+                                   cbt_settings.pids[cbt_settings.displayIndex].value%10);
+  }else{
+    sprintf(lcdString, "%c:%d", cbt_settings.pids[cbt_settings.displayIndex].name[0], 
+                                   cbt_settings.pids[cbt_settings.displayIndex].value);
+  }
+  
+  if( cbt_settings.pids[incIndex].settings & B00000001 == B00000001 ){ // add decimal flag
+  sprintf(lcdString+6, "%c:%d.%d", cbt_settings.pids[incIndex].name[0], 
+                                    cbt_settings.pids[incIndex].value/10,
+                                    cbt_settings.pids[incIndex].value%10);
+  }else{
+    sprintf(lcdString+6, "%c:%d", cbt_settings.pids[incIndex].name[0], 
+                                   cbt_settings.pids[incIndex].value);
+  }
+  
   // Turn off extras like decimal point. Needs verification!
   if( msg.frame_id == 0x201 ){
     msg.dispatch = false;
@@ -600,3 +630,17 @@ void MazdaLED::nextScreen(short dir) {
 }
 
 
+void MazdaLED::showNewPageMessage()
+{
+  char msgBuffer[13] = "            ";
+  sprintf( msgBuffer, " %c%c%c%c  %c%c%c%c ", cbt_settings.pids[cbt_settings.displayIndex].name[0], 
+                                              cbt_settings.pids[cbt_settings.displayIndex].name[1], 
+                                              cbt_settings.pids[cbt_settings.displayIndex].name[2],
+                                              cbt_settings.pids[cbt_settings.displayIndex].name[3],
+                                              
+                                              cbt_settings.pids[cbt_settings.displayIndex+1].name[0],
+                                              cbt_settings.pids[cbt_settings.displayIndex+1].name[1],
+                                              cbt_settings.pids[cbt_settings.displayIndex+1].name[2],
+                                              cbt_settings.pids[cbt_settings.displayIndex+1].name[3]);
+  MazdaLED::showStatusMessage(msgBuffer, 2000);
+}

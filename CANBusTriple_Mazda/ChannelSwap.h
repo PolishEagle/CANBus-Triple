@@ -1,4 +1,3 @@
-
 #include "Middleware.h"
 
 
@@ -26,4 +25,5 @@ Message ChannelSwap::process( Message msg )
 
   return msg;
 }
+
 
