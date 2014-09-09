@@ -89,7 +89,6 @@ void setup(){
     delay(50);
   }
   
-  
   // Setup CAN Busses 
   CANBus1.begin();
   CANBus1.baudConfig(125);
@@ -110,7 +109,6 @@ void setup(){
   // Manually configure INT6 for Bus 3
   // EICRB |= (1<<ISC60)|(1<<ISC61); // sets the interrupt type
   // EIMSK |= (1<<INT6); // activates the interrupt
-  
   
   digitalWrite( BOOT_LED, HIGH );
   delay(100);
@@ -133,9 +131,11 @@ void setup(){
 void handleInterrupt1(){
   
 }
+
 void handleInterrupt2(){
   
 }
+
 ISR(INT6_vect) {
   
 }
@@ -143,8 +143,8 @@ ISR(INT6_vect) {
 
 
 
-void loop() {
-  
+void loop()
+{
   // All Middleware ticks (Like loop() for middleware)
   SerialCommand::tick();
   
@@ -153,14 +153,11 @@ void loop() {
     MazdaLED::tick();
   #endif
   
-  
   if( digitalRead(CAN1INT_D) == 0 ) readBus(CANBus1);
   if( digitalRead(CAN2INT_D) == 0 ) readBus(CANBus2);
   if( digitalRead(CAN3INT_D) == 0 ) readBus(CANBus3);
   
-  
   // Process message stack
-  
   if( !readQueue.isEmpty() && !writeQueue.isFull() ){
     processMessage( readQueue.pop() );
   }
@@ -175,90 +172,62 @@ void loop() {
   #endif
   
   boolean success = true;
-  while( !writeQueue.isEmpty() && success ){
+  while( !writeQueue.isEmpty() && success )
+  {
+      Message msg = writeQueue.pop();
+      CANBus channel = busses[msg.busId-1];
     
-    Message msg = writeQueue.pop();
-    CANBus channel = busses[msg.busId-1];
+      //SerialCommand::printMessageToSerial(msg);
+      success = sendMessage( msg, channel );
     
-    //SerialCommand::printMessageToSerial(msg);
-    success = sendMessage( msg, channel );
-    
-    if( !success ){
-      // TX Failure, add back to queue
-      writeQueue.push(msg);
+      if( !success )
+      {
+          // TX Failure, add back to queue
+          writeQueue.push(msg);
       
-      #ifdef DEBUG_BUILD
-        SerialCommand::activeSerial->println("ALL TX BUFFERS FULL ON " + busses[msg.busId-1].name );
-      #endif
-    }
-    
-  }
+          #ifdef DEBUG_BUILD
+              SerialCommand::activeSerial->println("ALL TX BUFFERS FULL ON " + busses[msg.busId-1].name );
+          #endif
+      }
+   }
   
   //* MOVE TO MORE LOGICAL PLACE
-    
   byte button = WheelButton::getButtonDown();
   
   if( wheelButton != button ){
-    wheelButton = button;
+     wheelButton = button;
     
-     switch(wheelButton){
-       /*
-       case B10000000:
-         MazdaLED::showStatusMessage("    LEFT    ", 2000);
-       break;
-       case B01000000:
-         MazdaLED::showStatusMessage("    RIGHT   ", 2000);
-       break;
-       case B00100000:
-         MazdaLED::showStatusMessage("     UP     ", 2000);
-       break;
-       case B00010000:
-         MazdaLED::showStatusMessage("    DOWN    ", 2000);
-       break;
-       case B00001000:
-         MazdaLED::showStatusMessage("    WHAT    ", 2000);
-       break;
-       case B00000100:
-         MazdaLED::showStatusMessage("    WHAT    ", 2000);
-       break;
-       case B00000010:
-         MazdaLED::showStatusMessage("    WHAT    ", 2000);
-       break;
-       case B00000001:
-         MazdaLED::showStatusMessage("    WHAT    ", 2000);
-       break;
-       */
-       
-       case B10000001:
+     switch(wheelButton)
+     {       
+       case B_ARROW_LEFT:
          // Decrement service pid
          ServiceCall::decServiceIndex();
          MazdaLED::showNewPageMessage();
          CANBus2.setFilter( ServiceCall::filterPids[0], ServiceCall::filterPids[1] );
        break;
-       case B01000001:
+       
+       case B_ARROW_RIGHT:
          // Increment service pid 
          ServiceCall::incServiceIndex();
          MazdaLED::showNewPageMessage();
          CANBus2.setFilter( ServiceCall::filterPids[0], ServiceCall::filterPids[1] );
        break;
-       case B01000010:
+       
+       case (B_INFO_BACK | B_ARROW_RIGHT):
          toggleMazdaLed();
        break;
      }
- 
   }
-
-  
 } // End loop()
 
 
 
 void toggleMazdaLed()
 {
-  cbt_settings.displayEnabled = MazdaLED::enabled = !MazdaLED::enabled;
-  EEPROM.write( offsetof(struct cbt_settings, displayEnabled), cbt_settings.displayEnabled);
-  if(MazdaLED::enabled)
-    MazdaLED::showStatusMessage("MazdaLED ON ", 2000);
+    cbt_settings.displayEnabled = MazdaLED::enabled = !MazdaLED::enabled;
+    EEPROM.write( offsetof(struct cbt_settings, displayEnabled), cbt_settings.displayEnabled);
+    if(MazdaLED::enabled)
+        MazdaLED::showStatusMessage("MazdaLED ON ", 2000);
 }
 
 
@@ -298,16 +267,12 @@ boolean sendMessage( Message msg, CANBus bus ){
   
   digitalWrite( BOOT_LED, LOW );
   
-  return true;
-  
+  return true; 
 }
 
 
-
-
-
-void readBus( CANBus bus ){
-  
+void readBus( CANBus bus )
+{
   // TODO Cleanup and optimize
   
   // Abort if readQueue is full
@@ -357,6 +322,18 @@ void processMessage( Message msg ){
   
 }
 
-
-
-
+/* Function to handle long presses*/
+void longButtonPressHandler()
+{
+    switch (WheelButton::btnState)
+    {
+      case B_INFO_BACK:
+        WheelButton::controlsEnabled = !WheelButton::controlsEnabled;
+         
+        if (WheelButton::controlsEnabled)
+          MazdaLED::showStatusMessage("Controls On", 1500);
+        else
+          MazdaLED::showStatusMessage("Controls Off", 1500);
+        break;
+    }
+}
