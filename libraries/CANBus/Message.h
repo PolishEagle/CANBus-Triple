@@ -17,7 +17,7 @@ class Message {
         unsigned int busStatus; // Intended to hold status of the bus imediately before reading of the buffer.
         unsigned int busId;
         bool dispatch;
-    
+		bool printedToSerial;
 };
 
 #endif
